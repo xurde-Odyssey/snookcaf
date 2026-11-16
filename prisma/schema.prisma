@@ -1,0 +1,266 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Business configuration and staff identity. Operations arrive in later phases.
+model Business {
+  id        String             @id @default(cuid())
+  slug      String             @unique
+  name      String
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+  settings  BusinessSettings[]
+  staff     Staff[]
+  auditLogs AuditLog[]
+  snookerTables SnookerTable[]
+  menuItems MenuItem[]
+  pricingVersions PricingVersion[]
+  playSessions SnookerSession[]
+  operations OperationReceipt[]
+}
+
+// Append a new version when settings change. No settings write API in Phase 1.
+model BusinessSettings {
+  id         String   @id @default(cuid())
+  businessId String
+  version    Int      @default(1)
+  currency   String   @default("NPR") @db.VarChar(3)
+  timezone   String   @default("Asia/Kathmandu")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+
+  @@unique([businessId, version])
+}
+
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  CASHIER
+  STAFF
+}
+
+enum OperationalArea {
+  NONE
+  TABLES
+  CAFE
+  BOTH
+}
+
+model Staff {
+  id                 String @id @default(cuid())
+  businessId         String
+  email              String @unique
+  name               String
+  passwordHash       String
+  role               Role @default(STAFF)
+  operationalArea    OperationalArea @default(NONE)
+  active             Boolean @default(true)
+  mustChangePassword Boolean @default(true)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+  business           Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  sessions           Session[]
+  auditEvents        AuditLog[] @relation("Actor")
+  startedPlaySessions SnookerSession[] @relation("SessionStarter")
+  approvedPlaySessions SnookerSession[] @relation("SessionApprover")
+  pricingVersions PricingVersion[]
+  pricingEvents SessionPricingEvent[]
+  proposedAdjustments SessionAdjustment[] @relation("Proposer")
+  reviewedAdjustments SessionAdjustment[] @relation("Reviewer")
+  @@index([businessId, role, active])
+}
+
+model Session {
+  id        String @id @default(cuid())
+  tokenHash String @unique
+  staffId   String
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  staff     Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  @@index([staffId])
+  @@index([expiresAt])
+}
+
+model LoginRateLimit {
+  key       String @id
+  attempts  Int
+  expiresAt DateTime @db.Timestamptz(3)
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id         String @id @default(cuid())
+  businessId String
+  actorId    String?
+  action     String
+  targetId   String?
+  metadata   Json @default("{}")
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  actor      Staff? @relation("Actor", fields: [actorId], references: [id], onDelete: Restrict)
+  @@index([businessId, createdAt])
+  @@index([targetId])
+}
+
+
+enum PlayType {
+  HOURLY
+  FRAME_WISE
+}
+enum PlaySessionStatus {
+  RUNNING
+  PAUSED
+  PENDING_REVIEW
+  PENDING_CHECKOUT
+}
+enum CheckoutStatus {
+  AWAITING_APPROVAL
+  PENDING
+}
+enum AdjustmentStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+model SnookerTable {
+  id String @id @default(cuid())
+  businessId String
+  number String
+  name String
+  defaultPlayType PlayType
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  sessions SnookerSession[]
+  @@unique([businessId, number])
+}
+model MenuItem {
+  id String @id @default(cuid())
+  businessId String
+  name String
+  price Decimal @db.Decimal(12,2)
+  archivedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  @@index([businessId, archivedAt])
+}
+model PricingVersion {
+  id String @id @default(cuid())
+  version Int
+  businessId String
+  hourlyRate Decimal @db.Decimal(12,2)
+  frameRate Decimal @db.Decimal(12,2)
+  createdById String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  createdBy Staff @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  segments SessionPricingSegment[]
+  @@unique([businessId, version])
+  @@index([businessId, createdAt])
+}
+model SnookerSession {
+  id String @id @default(cuid())
+  businessId String
+  tableId String
+  tableNumber String
+  startedById String
+  initialPlayType PlayType
+  currentPlayType PlayType
+  status PlaySessionStatus @default(RUNNING)
+  revision Int @default(0)
+  startedAt DateTime @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
+  calculatedAmount Decimal? @db.Decimal(12,2)
+  approvedFinalAmount Decimal? @db.Decimal(12,2)
+  adjustmentDifference Decimal? @db.Decimal(12,2)
+  adjustmentReason String?
+  adjustmentApprovedById String?
+  adjustmentApprovedAt DateTime? @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  table SnookerTable @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  startedBy Staff @relation("SessionStarter", fields: [startedById], references: [id], onDelete: Restrict)
+  adjustmentApprovedBy Staff? @relation("SessionApprover", fields: [adjustmentApprovedById], references: [id], onDelete: Restrict)
+  segments SessionPricingSegment[]
+  adjustments SessionAdjustment[]
+  events SessionPricingEvent[]
+  checkout PendingCheckout?
+  @@index([businessId, status, startedAt])
+}
+model SessionPricingSegment {
+  id String @id @default(cuid())
+  sessionId String
+  sequence Int
+  pricingVersionId String
+  playType PlayType
+  appliedRate Decimal @db.Decimal(12,2)
+  startedAt DateTime @db.Timestamptz(3)
+  endedAt DateTime? @db.Timestamptz(3)
+  activeSince DateTime? @db.Timestamptz(3)
+  billableSeconds Decimal @default(0) @db.Decimal(14,3)
+  frameCount Int?
+  calculatedAmount Decimal? @db.Decimal(12,2)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  session SnookerSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  pricingVersion PricingVersion @relation(fields: [pricingVersionId], references: [id], onDelete: Restrict)
+  @@unique([sessionId, sequence])
+}
+model SessionAdjustment {
+  id String @id @default(cuid())
+  sessionId String
+  proposedById String
+  proposedAmount Decimal @db.Decimal(12,2)
+  proposedReason String
+  referenceAmount Decimal @db.Decimal(12,2)
+  status AdjustmentStatus @default(REQUESTED)
+  proposedAt DateTime @db.Timestamptz(3)
+  reviewedById String?
+  reviewedAt DateTime? @db.Timestamptz(3)
+  reviewReason String?
+  approvedAmount Decimal? @db.Decimal(12,2)
+  session SnookerSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  proposedBy Staff @relation("Proposer", fields: [proposedById], references: [id], onDelete: Restrict)
+  reviewedBy Staff? @relation("Reviewer", fields: [reviewedById], references: [id], onDelete: Restrict)
+  @@index([sessionId, status])
+}
+model PendingCheckout {
+  id String @id @default(cuid())
+  sessionId String @unique
+  status CheckoutStatus
+  referenceAmount Decimal @db.Decimal(12,2)
+  amount Decimal? @db.Decimal(12,2)
+  createdAt DateTime @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  session SnookerSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+}
+model SessionPricingEvent {
+  id String @id @default(cuid())
+  sessionId String
+  actorId String
+  action String
+  metadata Json
+  createdAt DateTime @db.Timestamptz(3)
+  session SnookerSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  actor Staff @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  @@index([sessionId, createdAt])
+}
+model OperationReceipt {
+  id String @id @default(cuid())
+  businessId String
+  key String
+  fingerprint String
+  resultId String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  @@unique([businessId, key])
+}
