@@ -34,11 +34,9 @@ See [permissions and security design](permissions.md), [file inventory](phase2-f
 
 ## Remaining phases
 
-3. Tables, tariffs, reservations, server-timed sessions and concurrency constraints.
-4. Menu, variants, cart drafts, price snapshots and order lifecycle.
-5. Unified billing, settlement, refunds, receipt compliance review and idempotency.
-6. Inventory ledgers, recipes, suppliers, purchases and expenses.
-7. Customers, memberships and shifts (staff identity is implemented in Phase 2).
+4. Café POS and order creation/history (schema foundation exists; operational workflow remains incomplete).
+6. Inventory ledgers, suppliers, purchases and expenses.
+7. Customer, membership and shift enhancements.
 8. Transaction-backed analytics, reconciliation and exports.
 9. Security and integrity tests, monitoring, backup/restore and deployment procedures.
 
@@ -47,4 +45,4 @@ Hosting and production deployment remain outside this implementation. No complia
 
 ## Phase 3 implementation
 
-Play sessions use `SnookerSession`, distinct from authentication `Session`. `src/features/snooker/server/service.ts` owns transactional catalog/session mutations and reuses the business-row lock for consistent authorization and lifecycle transitions. Rate versions and segments retain Decimal snapshots; proposals and approvals are distinct records; checkout is outstanding only. Raw SQL supplements Prisma with exclusion, partial-unique and deferred consistency constraints and history-protection triggers. See [the Phase 3 design](phase3.md) for the implemented scope and [verification](phase3-verification.md) for pending runtime acceptance. Café ordering and payments remain future phases.
+Play sessions use `SnookerSession`, distinct from authentication `Session`. `src/features/snooker/server/service.ts` owns transactional catalog/session mutations and reuses the business-row lock for consistent authorization and lifecycle transitions. Rate versions and segments retain Decimal snapshots; proposals and approvals are distinct records. Phase 5 extends that pending checkout with payment and customer-credit records. Café order creation remains incomplete; see [Phase 5](phase5.md) for that dependency and billing verification status.

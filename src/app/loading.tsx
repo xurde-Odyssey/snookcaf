@@ -3,16 +3,16 @@ export default function Loading() {
     <div
       role="status"
       aria-label="Loading workspace"
-      className="space-y-6 motion-safe:animate-pulse"
+      className="grid min-h-[65vh] place-items-center"
     >
-      <div className="h-10 w-56 rounded-lg bg-gray-200" />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-40 rounded-xl bg-gray-200" />
-        ))}
+      <div className="flex flex-col items-center gap-3">
+        <div aria-hidden="true" className="relative flex h-10 w-24 items-center justify-center gap-1 overflow-hidden rounded-md border-2 border-[#D7C7A3] bg-[#15583D]">
+          <span className="snooker-ball h-2.5 w-2.5 rounded-full bg-red-600" />
+          <span className="snooker-ball h-2.5 w-2.5 rounded-full border border-gray-300 bg-white" />
+          <span className="snooker-ball h-2.5 w-2.5 rounded-full bg-black" />
+        </div>
+        <p className="text-sm font-medium text-[#4B5563]">Loading workspace…</p>
       </div>
-      <div className="h-80 rounded-xl bg-gray-200" />
-      <span className="sr-only">Loading workspace…</span>
     </div>
   );
 }

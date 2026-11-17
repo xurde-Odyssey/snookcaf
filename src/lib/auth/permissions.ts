@@ -5,7 +5,7 @@ export type Area = (typeof areas)[number];
 export type Identity = { role: Role; operationalArea: Area };
 export const permissions = [
   "dashboard.view", "tables.view", "tables.operate", "cafe.order", "orders.view",
-  "billing.view", "billing.settle", "billing.refund", "inventory.manage",
+  "billing.view", "billing.settle", "billing.discount", "billing.refund", "orders.cancel", "orders.manage", "inventory.manage",
   "expenses.create", "customers.manage", "staff.manage", "reports.operational",
   "tables.manage", "menu.manage", "pricing.manage", "session.adjust_final_charge",
   "reports.profit", "settings.manage", "audit.view", "ownership.manage",
@@ -14,7 +14,7 @@ export type Permission = (typeof permissions)[number];
 const grants: Record<Role, readonly Permission[]> = {
   OWNER: permissions,
   ADMIN: permissions.filter(p => p !== "ownership.manage" && p !== "reports.profit" && p !== "audit.view"),
-  MANAGER: ["dashboard.view", "tables.view", "tables.operate", "cafe.order", "orders.view", "billing.view", "billing.settle", "inventory.manage", "expenses.create", "reports.operational"],
+  MANAGER: ["dashboard.view", "tables.view", "tables.operate", "cafe.order", "orders.view", "orders.cancel", "orders.manage", "billing.view", "billing.settle", "inventory.manage", "expenses.create", "reports.operational"],
   CASHIER: ["dashboard.view", "tables.view", "tables.operate", "cafe.order", "orders.view", "billing.view", "billing.settle"],
   STAFF: ["dashboard.view"],
 };

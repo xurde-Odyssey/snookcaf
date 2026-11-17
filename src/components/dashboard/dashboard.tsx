@@ -25,8 +25,8 @@ import { demoOrders, demoTables } from "@/features/dashboard/fixtures";
 import { formatMoney } from "@/lib/format";
 import { RevenueChart } from "./revenue-chart";
 import { cn } from "@/lib/utils";
-export function Dashboard({ date }: { date: string }) {
-  const [sample, setSample] = useState(true);
+export function Dashboard({ date, metrics }: { date: string; metrics: { salesToday: string; collectedToday: string; pendingAmount: string; pendingCount: number; creditOutstanding: string; snookerSales: string; cafeSales: string; activeTables: number; totalTables: number } }) {
+  const [sample, setSample] = useState(false);
   const [filter, setFilter] = useState<TableStatus | "all">("all");
   const [selected, setSelected] = useState<(typeof demoTables)[number] | null>(
     null,
@@ -85,27 +85,27 @@ export function Dashboard({ date }: { date: string }) {
         className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
       >
         <KpiCard
-          label="Total sales"
-          value={sample ? formatMoney(18450) : "—"}
-          detail="Sample settled sales · not live data"
+          label="Today's sales"
+          value={sample ? formatMoney(18450) : formatMoney(Number(metrics.salesToday))}
+          detail={sample ? "Development preview" : "Finalized bills · NPR"}
           icon={Wallet}
         />
         <KpiCard
           label="Snooker revenue"
-          value={sample ? formatMoney(12500) : "—"}
-          detail="Sample table charges"
+          value={sample ? formatMoney(12500) : formatMoney(Number(metrics.snookerSales))}
+          detail={sample ? "Development preview" : "Snooker charges"}
           icon={CircleDot}
         />
         <KpiCard
           label="Café revenue"
-          value={sample ? formatMoney(5950) : "—"}
-          detail="Sample food & beverage sales"
+          value={sample ? formatMoney(5950) : formatMoney(Number(metrics.cafeSales))}
+          detail={sample ? "Development preview" : "Café charges"}
           icon={Coffee}
         />
         <KpiCard
           label="Active tables"
-          value={sample ? "02 / 06" : "—"}
-          detail="Illustrative occupancy · timers paused"
+          value={sample ? "02 / 06" : `${metrics.activeTables} / ${metrics.totalTables}`}
+          detail={sample ? "Development preview" : "Active snooker sessions"}
           icon={ReceiptText}
         />
       </section>
@@ -148,12 +148,12 @@ export function Dashboard({ date }: { date: string }) {
           <div className="mt-5 space-y-4">
             {[
               {
-                label: "Payments collected",
-                value: 17250,
+                label: "Payments collected today",
+                value: sample ? 17250 : Number(metrics.collectedToday),
                 icon: ArrowDownLeft,
               },
-              { label: "Outstanding balance", value: 1200, icon: ReceiptText },
-              { label: "Daily expenses", value: 2400, icon: ArrowUpRight },
+              { label: "Pending checkout", value: sample ? 1200 : Number(metrics.pendingAmount), icon: ReceiptText },
+              { label: "Customer credit", value: sample ? 0 : Number(metrics.creditOutstanding), icon: ArrowUpRight },
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="flex items-center gap-3">
                 <span className="rounded-lg bg-muted p-2.5 text-muted-foreground">
@@ -163,7 +163,7 @@ export function Dashboard({ date }: { date: string }) {
                   {label}
                 </span>
                 <span className="text-sm font-semibold tabular-nums">
-                  {sample ? formatMoney(value) : "—"}
+                  {formatMoney(value)}
                 </span>
               </div>
             ))}

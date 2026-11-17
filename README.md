@@ -1,6 +1,6 @@
 # Cue & Coffee — Snooker + Café
 
-Next.js / TypeScript workspace for a Nepal-based snooker club and café. Phase 2 adds database-backed staff authentication, permissions, staff management and security auditing. Phase 1’s responsive shell, components and explicitly fictional dashboard remain. Phase 3 now adds live snooker sessions, versioned pricing, admin pricing approvals, pending checkout and an admin menu catalog. Café ordering, payment processing and inventory operations remain planned.
+Next.js / TypeScript workspace for a Nepal-based snooker club and café. It includes database-backed staff authentication/RBAC, snooker sessions with versioned pricing and approval, and Phase 5 billing on the existing pending checkout. Café POS and order-management interfaces are implemented; the POS catalog API is ready, while order creation, listing and mutation APIs remain pending backend integration.
 
 ## Run locally
 
@@ -63,7 +63,7 @@ The 15 database integration cases exercise real Prisma queries/transactions and 
 
 For browser tests, use the normal **development** database and a seeded owner. Configure `E2E_OWNER_EMAIL` and `E2E_OWNER_PASSWORD`, install Chromium (`npx playwright install chromium`) and run `npm run test:e2e`. Playwright starts the server with `APP_ORIGIN=http://127.0.0.1:3000`; stop any existing server using a different origin first. Phase 1 workflows now sign in before exercising the original dashboard. Tests also check unauthenticated routes/APIs and cross-origin rejection. Repeated runs may hit intentional login limits; wait for the window or clean expired records.
 
-In sandboxes that block Turbopack worker ports, validate the production build with `npm run build -- --webpack`.
+The build script uses Webpack because Turbopack native bindings/workers are unavailable on the supported macOS arm64 setup.
 
 Actual execution results and remaining runtime validation are in [docs/verification.md](docs/verification.md). A passing build does not validate database concurrency or browser behavior.
 
@@ -75,7 +75,7 @@ Run `npm run db:auth-cleanup` periodically to remove expired sessions and rate-l
 
 ## Project layout
 
-- `src/app/(workspace)`: protected dashboard, future-module placeholders, staff and audit pages. URLs are unchanged.
+- `src/app/(workspace)`: protected overview, snooker, menu, POS, order management, billing, staff and audit pages, plus future-module placeholders. URLs are unchanged.
 - `src/app/login`, `src/app/change-password`: authentication screens.
 - `src/app/api`: authenticated JSON routes and same-origin mutations.
 - `src/lib/auth`: password hashing, validation, session/rate-limit services, permissions, page and HTTP guards.
@@ -85,7 +85,7 @@ Run `npm run db:auth-cleanup` periodically to remove expired sessions and rate-l
 - `prisma`: schema, migrations, guarded seed and expired-auth-data cleanup.
 - `tests/integration`, `tests/e2e`: database/API and browser checks.
 
-The orange, black and off-white theme remains. Typography uses Inter and Plus Jakarta Sans via Google Fonts with sans-serif fallbacks. Phase 3 session operations are implemented; payment settlement, café ordering logic and real financial reporting remain outside scope.
+The orange, black and off-white theme remains. Typography uses Inter and Plus Jakarta Sans via Google Fonts with sans-serif fallbacks. Dashboard sales and collection metrics now use checkout/payment records; development samples remain behind an explicit preview toggle.
 
 
 ## Phase 3 — snooker operations and pricing approvals
@@ -93,3 +93,27 @@ The orange, black and off-white theme remains. Typography uses Inter and Plus Ja
 Apply the new `20261116010000_session_pricing` migration, then configure `/pricing` and create tables in `/tables` as an owner/admin. Staff assigned table operations can run sessions and request price adjustments; only owners/admins can approve them at `/pricing-reviews`. `/session-history` preserves the original calculations and every switch/review. `/menu` manages the catalog only.
 
 See [Phase 3 design, API, setup and limits](docs/phase3.md), [actual verification results](docs/phase3-verification.md), and [changed files](docs/phase3-files.md). The existing Phase 2 verification document is historical; Phase 3 acceptance requires the new migration and database/browser tests.
+
+## Phase 5 — billing, payments and customer credit
+
+Billing uses `PendingCheckout` as the bill record, stores cash/QR payment allocations, supports admin-approved fixed/percentage discounts, split payments, explicit customer credit, repayments, and 80 mm print receipts. See [Phase 5 architecture and limitations](docs/phase5.md). Apply `20261118000000_billing_payments` before using Billing.
+
+## Phase 4 — Café POS frontend and backend handoff
+
+The `/pos` and `/orders` screens provide the responsive product grid/cart, standalone or session-linked order selection, order search/filter/detail, permitted order updates and reasoned cancellation UI. `/tables` links an occupied session into POS with its session ID preselected. POS categories include Beverages (Coffee, Tea, Cold drinks, Beer, Other beverages), Food & Snacks (Non-Vegetarian and Other food), and Veg Snacks. Menu item categories are stored in the existing category field and suggested in `/menu`. `GET /api/cafe/pos` is implemented and returns active menu products and running sessions. Order mutations and listing are pending backend integration. Menu administration remains at `/menu`.
+
+Frontend API contract for backend implementation:
+
+- `GET /api/cafe/pos` → `{ products: [{ id, name, category, price, archivedAt, available }], activeSessions: [{ id, tableNumber, tableName?, customerName?, startedBy? }] }`; implemented with `cafe.order` authorization, business scoping and active product/session filters.
+- `POST /api/cafe/orders` accepts `{ requestId, orderType: "STANDALONE" | "SESSION", sessionId, notes, items: [{ productId, quantity }] }`; validate and price from database records, snapshot names/rates, create one order idempotently, and create/link checkout records as specified in Phase 4.
+- `GET /api/cafe/orders?search=&status=&from=&to=` → `{ orders: [...] }` with snapshot items, creator and optional unique session/table data; authorize `orders.view` and filter within the current business.
+- `PATCH /api/cafe/orders/[id]` accepts one of `{ requestId, action: "update", items, notes }`, `{ requestId, action: "complete" }`, or `{ requestId, action: "cancel", reason }`; enforce role permissions, unpaid status and idempotency on the server, preserve cancelled order history, and synchronize checkout safely.
+
+The UI never treats its displayed subtotal as authoritative. Backend settlement must recalculate from menu records and enforce session association, unavailable-item rejection, duplicate protection, cancellation history, and checkout consistency. See the original Phase 4 requirements in project history and the current schema models `CafeOrder` and `CafeOrderItem`.
+
+Frontend pass status:
+
+- Done: POS product/category/cart UI, active session preselection, order history/details UI, and the active catalog read endpoint.
+- Backend handoff: implement order create/list/update/complete/cancel APIs and connect them to `CafeOrder` and `PendingCheckout`.
+- Next UI pass: replace Overview's sample-only floor/recent-order sections with live tables and transactions.
+- Following UI pass: build the Business Settings and Customers pages; keep Inventory, Expenses and Reports as planned modules until their phase requirements are defined.

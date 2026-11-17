@@ -1,4 +1,5 @@
 import "server-only";
+import { randomBytes } from "node:crypto";
 import { Prisma, type Staff } from "@prisma/client";
 import { db } from "@/lib/db";
 import { AuthError } from "@/lib/auth/errors";
@@ -69,11 +70,11 @@ export function createSnookerService(clock: () => Date = sessionClock) {
           if (await tx.snookerSession.count({ where: { tableId: table.id, status: { in: ["RUNNING", "PAUSED"] } } })) throw new AuthError(409, "Finish the active session before editing or archiving this table.");
           result = await tx.snookerTable.update({ where: { id: table.id }, data: { number: data.number, name: data.name, defaultPlayType: data.defaultPlayType, archivedAt: data.archived ? table.archivedAt ?? now : null } });
         } else if (data.action === "menu.create") {
-          result = await tx.menuItem.create({ data: { businessId, name: data.name, price: data.price } });
+          result = await tx.menuItem.create({ data: { businessId, name: data.name, category: data.category, price: data.price } });
         } else {
           const item = await tx.menuItem.findFirst({ where: { id: data.id, businessId } });
           if (!item) throw new AuthError(404, "Menu item not found.");
-          result = await tx.menuItem.update({ where: { id: item.id }, data: { name: data.name, price: data.price, archivedAt: data.archived ? item.archivedAt ?? now : null } });
+          result = await tx.menuItem.update({ where: { id: item.id }, data: { name: data.name, category: data.category, price: data.price, archivedAt: data.archived ? item.archivedAt ?? now : null } });
         }
         await audit(tx, businessId, actor.id, data.action.toUpperCase().replace(".", "_"), result.id, { ...data });
         await saveReceipt(tx, businessId, data.requestId, hash, result.id);
@@ -159,7 +160,7 @@ export function createSnookerService(clock: () => Date = sessionClock) {
             const reference = referenceTotal(segments.map(s => s.calculatedAmount!));
             if (reference.greaterThan("99999999.99")) throw new AuthError(409, "Charge exceeds the supported amount limit. Contact the owner.");
             await tx.snookerSession.update({ where: { id }, data: { endedAt: now, calculatedAmount: reference, status: data.proposal ? "PENDING_REVIEW" : "PENDING_CHECKOUT" } });
-            await tx.pendingCheckout.create({ data: { sessionId: id, referenceAmount: reference, amount: data.proposal ? null : reference, status: data.proposal ? "AWAITING_APPROVAL" : "PENDING", createdAt: now } });
+            await tx.pendingCheckout.create({ data: { businessId, billNumber: `BILL-${now.getTime().toString(36).toUpperCase()}-${randomBytes(3).toString("hex").toUpperCase()}`, sessionId: id, referenceAmount: reference, subtotal: reference, amount: data.proposal ? null : reference, status: data.proposal ? "AWAITING_APPROVAL" : "PENDING", createdAt: now } });
             await event(tx, actor, id, "SESSION_FINALIZED", now, { calculatedAmount: reference.toFixed(2), tableReleased: true });
             await event(tx, actor, id, "CHECKOUT_ENTRY_CREATED", now, { status: data.proposal ? "AWAITING_APPROVAL" : "PENDING", amount: data.proposal ? null : reference.toFixed(2) });
             if (data.proposal) {
@@ -180,7 +181,9 @@ export function createSnookerService(clock: () => Date = sessionClock) {
           const approved = data.action === "approve" ? new Prisma.Decimal(data.amount) : null;
           await tx.sessionAdjustment.update({ where: { id: adjustment.id }, data: { status: data.action === "approve" ? "APPROVED" : data.action === "reject" ? "REJECTED" : "CANCELLED", reviewedById: actor.id, reviewedAt: now, reviewReason: data.reason, approvedAmount: approved } });
           await tx.snookerSession.update({ where: { id }, data: { status: "PENDING_CHECKOUT", ...(approved !== null ? { approvedFinalAmount: approved, adjustmentDifference: adjustmentDifference(session.calculatedAmount!, approved), adjustmentReason: data.reason, adjustmentApprovedById: actor.id, adjustmentApprovedAt: now } : {}) } });
-          await tx.pendingCheckout.update({ where: { sessionId: id }, data: { status: "PENDING", amount: approved ?? session.calculatedAmount } });
+          const finalSnookerAmount = approved ?? session.calculatedAmount!;
+          const checkoutSubtotal = finalSnookerAmount.add(session.checkout?.cafeSubtotal ?? new Prisma.Decimal(0));
+          await tx.pendingCheckout.update({ where: { sessionId: id }, data: { status: "PENDING", subtotal: checkoutSubtotal, amount: checkoutSubtotal.sub(session.checkout?.discountAmount ?? new Prisma.Decimal(0)) } });
           await event(tx, actor, id, data.action === "approve" ? "ADJUSTMENT_APPROVED" : data.action === "reject" ? "ADJUSTMENT_REJECTED" : "ADJUSTMENT_CANCELLED", now, { adjustmentId: adjustment.id, referenceAmount: session.calculatedAmount!.toFixed(2), approvedAmount: approved?.toFixed(2) ?? null, difference: approved !== null ? adjustmentDifference(session.calculatedAmount!, approved).toFixed(2) : null, reason: data.reason });
         }
         await tx.snookerSession.update({ where: { id }, data: { revision: { increment: 1 } } });

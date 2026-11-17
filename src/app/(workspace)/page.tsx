@@ -6,6 +6,8 @@ import { can } from "@/lib/auth/permissions";
 import Link from "next/link";
 import { navigation } from "@/lib/navigation";
 import { routePermissions } from "@/lib/auth/permissions";
+import { dashboardMetrics } from "@/features/dashboard/server/service";
+import { requestToken } from "@/lib/auth/http";
 export default async function Home() {
   const user = await requirePage("dashboard.view");
   if (!can(user, "reports.operational")) return (
@@ -19,5 +21,6 @@ export default async function Home() {
       {user.role === "STAFF" && user.operationalArea === "NONE" && <p className="rounded-xl border bg-white p-6">No operational area assigned. Ask an administrator to assign tables or café access.</p>}
     </div>
   );
-  return <Dashboard date={formatBusinessDate(new Date())} />;
+  const metrics = await dashboardMetrics(await requestToken());
+  return <Dashboard date={formatBusinessDate(new Date())} metrics={metrics} />;
 }

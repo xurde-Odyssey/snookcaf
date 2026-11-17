@@ -12,5 +12,5 @@ export type SessionView = {
   checkout: { id: string; status: "AWAITING_APPROVAL" | "PENDING"; amount: string | null; referenceAmount: string } | null;
 };
 export type TableView = { id: string; number: string; name: string; defaultPlayType: PlayType; archivedAt: string | null; sessions: SessionView[] };
-export type MenuView = { id: string; name: string; price: string; archivedAt: string | null };
+export type MenuView = { id: string; name: string; category: string; price: string; archivedAt: string | null };
 export type PricingView = { id: string; hourlyRate: string; frameRate: string; createdAt: string };

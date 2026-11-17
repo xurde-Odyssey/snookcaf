@@ -1,16 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
 :root {
-  --font-heading: 'Plus Jakarta Sans', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --background: #f7f7f5;
-  --foreground: #111111;
+  --font-body: Inter, ui-sans-serif, system-ui, sans-serif;
+  --background: #F7F7F7;
+  --foreground: #171717;
   --card: #ffffff;
-  --primary: #ff7417;
+  --primary: #FF7417;
   --primary-foreground: #111111;
   --muted: #f3f4f3;
-  --muted-foreground: #6b7280;
-  --border: #e5e7eb;
+  --muted-foreground: #71717A;
+  --border: #E6E6E6;
+  --success: #16845B;
+  --danger: #DC2626;
+  --sidebar: #141414;
   --ring: #b94300;
   --radius: 0.75rem;
 }
@@ -25,6 +27,7 @@
   --color-border: var(--border);
   --color-ring: var(--ring);
   --font-sans: var(--font-body);
+  --color-sidebar: var(--sidebar);
 }
 @layer base {
   * {
@@ -34,15 +37,18 @@
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-body);
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 14px;
+    line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
   h1, h2, h3, h4 {
-    font-family: var(--font-heading);
+    font-family: var(--font-body);
     font-weight: 700;
     letter-spacing: -0.025em;
   }
+  h1 { font-size: 26px; }
+  h2 { font-size: 17px; }
+  h3 { font-size: 15px; }
   button, input, select, table {
     font-family: var(--font-body);
   }
@@ -59,6 +65,31 @@
     background: #ff741740;
   }
 }
+@keyframes snooker-ball-bounce {
+  0%, 100% { transform: translateY(2px); }
+  50% { transform: translateY(-6px); }
+}
+.snooker-ball {
+  animation: snooker-ball-bounce 800ms ease-in-out infinite;
+}
+.snooker-ball:nth-child(2) {
+  animation-delay: 120ms;
+}
+.snooker-ball:nth-child(3) {
+  animation-delay: 240ms;
+}
+@keyframes login-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-enter,
+.login-form-enter {
+  animation: login-rise 650ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.login-form-enter { animation-delay: 120ms; }
+.login-story {
+  background-color: #141414;
+}
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -66,4 +97,22 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+@media print {
+  @page { size: 80mm auto; margin: 2mm; }
+  body * { visibility: hidden !important; }
+  .receipt-print, .receipt-print * { visibility: visible !important; }
+  .receipt-print {
+    display: block !important;
+    position: fixed;
+    inset: 0 auto auto 0;
+    width: 100%;
+    max-width: 80mm;
+    margin: 0 auto;
+    color: #111;
+    background: #fff;
+    font: 11px/1.4 Inter, sans-serif;
+  }
+  .receipt-print p { margin: 2px 0; }
+  .receipt-print hr { border: 0; border-top: 1px dashed #777; margin: 8px 0; }
 }

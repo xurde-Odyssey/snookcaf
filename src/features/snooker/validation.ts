@@ -9,8 +9,8 @@ export const proposalSchema = z.object({ amount: amountSchema, reason }).strict(
 export const catalogSchema = z.discriminatedUnion("action", [
   z.object({ ...base, action: z.literal("table.create"), number: z.string().trim().min(1).max(20), name: z.string().trim().min(1).max(100), defaultPlayType: playTypeSchema }).strict(),
   z.object({ ...base, action: z.literal("table.update"), id, number: z.string().trim().min(1).max(20), name: z.string().trim().min(1).max(100), defaultPlayType: playTypeSchema, archived: z.boolean() }).strict(),
-  z.object({ ...base, action: z.literal("menu.create"), name: z.string().trim().min(1).max(100), price: amountSchema }).strict(),
-  z.object({ ...base, action: z.literal("menu.update"), id, name: z.string().trim().min(1).max(100), price: amountSchema, archived: z.boolean() }).strict(),
+  z.object({ ...base, action: z.literal("menu.create"), name: z.string().trim().min(1).max(100), category: z.string().trim().min(1).max(50).default("Other"), price: amountSchema }).strict(),
+  z.object({ ...base, action: z.literal("menu.update"), id, name: z.string().trim().min(1).max(100), category: z.string().trim().min(1).max(50).default("Other"), price: amountSchema, archived: z.boolean() }).strict(),
   z.object({ ...base, action: z.literal("pricing.set"), hourlyRate: amountSchema, frameRate: amountSchema }).strict(),
 ]);
 export const startSchema = z.object({ ...base, tableId: id }).strict();

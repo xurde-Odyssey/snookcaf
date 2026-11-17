@@ -15,6 +15,11 @@ describe("central permissions", () => {
     for (const role of ["CASHIER", "STAFF"] as const) for (const permission of ["reports.operational", "reports.profit", "settings.manage", "staff.manage"] as const) expect(can({ role, operationalArea: "BOTH" }, permission)).toBe(false);
     expect(can({ role: "STAFF", operationalArea: "BOTH" }, "billing.settle")).toBe(false);
   });
+  it("allows discount authorization only to owners and admins", () => {
+    expect(can({ role: "OWNER", operationalArea: "NONE" }, "billing.discount")).toBe(true);
+    expect(can({ role: "ADMIN", operationalArea: "NONE" }, "billing.discount")).toBe(true);
+    for (const role of ["MANAGER", "CASHIER", "STAFF"] as const) expect(can({ role, operationalArea: "BOTH" }, "billing.discount")).toBe(false);
+  });
   it("defaults staff to no operations and enforces assigned areas", () => {
     expect(can({ role: "STAFF", operationalArea: "NONE" }, "tables.operate")).toBe(false);
     expect(can({ role: "STAFF", operationalArea: "TABLES" }, "tables.operate")).toBe(true);
